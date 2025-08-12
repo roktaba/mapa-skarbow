@@ -2,134 +2,72 @@
 
 <html lang="pl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Mapa Skarbów</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    :root { --bg:#f7f7fb; --fg:#1f2937; --brand:#ff7a00; --accent:#00a884; --muted:#94a3b8; --card:#ffffff; --danger:#e11d48; --x-size:22px; }
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    #map{width:100%;height:100%}
-    .controls{position:absolute;top:3.5rem;left:.75rem;z-index:900;display:grid;gap:.4rem}
-    .btn{appearance:none;border:0;background:var(--card);color:#111;padding:.55rem .7rem;border-radius:.8rem;box-shadow:0 4px 16px rgba(0,0,0,.12);font-weight:700;font-size:.9rem}
-    .btn.brand{background:var(--brand);color:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.4)}
-    .btn.accent{background:var(--accent);color:#fff}
-    .x-marker{background:transparent;display:grid;place-items:center}
-    .x-marker> b{font-size:var(--x-size);color:var(--danger);-webkit-text-stroke:2px #fff;text-shadow:0 1px 0 #fff,0 0 6px rgba(0,0,0,.35);line-height:1}
-    .x-marker.hidden{display:none}
-    .x-marker.found{opacity:.35;filter:grayscale(1)}
-    .toast{position:fixed;left:50%;bottom:6rem;transform:translateX(-50%);background:#111827;color:#fff;padding:.7rem .9rem;border-radius:.8rem;box-shadow:0 8px 20px rgba(0,0,0,.3);font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s ease}
-    .toast.show{opacity:1}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Mapa Skarbów</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{--bg:#f7f7fb;--fg:#1f2937;--brand:#ff7a00;--accent:#00a884;--muted:#94a3b8;--card:#ffffff;--danger:#e11d48;--x-size:22px}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+#map{width:100%;height:100%}
+.controls{position:absolute;top:5.5rem;left:.75rem;z-index:900;display:grid;gap:.4rem}
+.btn{appearance:none;border:0;background:var(--card);color:#111;padding:.55rem .7rem;border-radius:.8rem;box-shadow:0 4px 16px rgba(0,0,0,.12);font-weight:700;font-size:.9rem}
+.btn.brand{background:var(--brand);color:#fff;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.btn.accent{background:var(--accent);color:#fff}
+.x-marker{background:transparent;display:grid;place-items:center}
+.x-marker> b{font-size:var(--x-size);color:var(--danger);-webkit-text-stroke:2px #fff;text-shadow:0 1px 0 #fff,0 0 6px rgba(0,0,0,.35);line-height:1}
+.x-marker.hidden{display:none}
+.x-marker.found{opacity:.35;filter:grayscale(1)}
+.toast{position:fixed;left:50%;bottom:6rem;transform:translateX(-50%);background:#111827;color:#fff;padding:.7rem .9rem;border-radius:.8rem;box-shadow:0 8px 20px rgba(0,0,0,.3);font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s ease;max-width:90%;text-align:center}
+.toast.show{opacity:1}
+.status-bar{position:absolute;top:0;left:0;width:100%;background:var(--card);color:var(--fg);padding:.3rem;text-align:center;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.1);z-index:1200}
+</style>
 </head>
 <body>
-  <div id="map"></div>
-  <div class="controls">
-    <button class="btn brand" id="hintBtn">🗺️ Podpowiedź</button>
-    <button class="btn" id="enterCodeBtn">🔑 Wpisz hasło</button>
-    <button class="btn" id="resetBtn">🔁 Reset</button>
-    <button class="btn accent" id="newGameBtn">🎯 Nowa gra</button>
-    <button class="btn" id="startBtn">▶️ Start gry</button>
-  </div>
-  <div class="toast" id="toast">Znaleziono skarb! 🏆</div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const MAP_IMAGE_URL='nowyplan.jpg';
-    let TREASURES=[];
-    const state={imageSize:null,editing:false,found:new Set()};
-    const toast=(m)=>{const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1400);};
-    const map=L.map('map',{crs:L.CRS.Simple,zoomControl:false,minZoom:-2,maxZoom:2});
-    let markers=new Map();
-    function getMaxZoomForImage(){return 2;}
-    function pxToLatLng(x,y){return map.unproject([x,y],getMaxZoomForImage());}
-    function latLngToPx(latlng){return map.project(latlng,getMaxZoomForImage());}
-    function pctToPx([xp,yp]){const w=state.imageSize.w,h=state.imageSize.h;return [xp/100*w,yp/100*h];}
-    function addMarker(t,visible){
-      const iconHtml=`<div class="x-marker ${visible?'':'hidden'} ${state.found.has(t.id)?'found':''}"><b>✖</b></div>`;
-      const icon=L.divIcon({html:iconHtml,className:'',iconSize:[36,36],iconAnchor:[18,18]});
-      const [x,y]=pctToPx(t.posPct);
-      const ll=pxToLatLng(x,y);
-      const m=L.marker(ll,{icon}).addTo(map);
-      markers.set(t.id,m);
-    }
-    function refreshMarkers(){
-      markers.forEach(m=>map.removeLayer(m));
-      markers.clear();
-      TREASURES.forEach((t,i)=>addMarker(t,i===0));
-    }
-    function checkCodeForCurrent(){
-      const remaining=TREASURES.filter(t=>!state.found.has(t.id));
-      if(!remaining.length){ toast('Wszystkie skarby znalezione!'); return; }
-      const t=remaining[0];
-      const pwd=prompt(`Wpisz 4-cyfrowe hasło:\n${t.hint || t.id}`);
-      if(pwd===null) return;
-      if(!/^\d{4}$/.test(pwd.trim())){ toast('Hasło musi mieć dokładnie 4 cyfry.'); return; }
-      if(pwd.trim()===t.code){
-        state.found.add(t.id);
-        markers.get(t.id)?.getElement()?.querySelector('.x-marker')?.classList.add('found');
-        toast('Znaleziono skarb! 🏆');
-        const idx=TREASURES.findIndex(x=>x.id===t.id);
-        if(idx+1<TREASURES.length){
-          markers.get(TREASURES[idx+1].id)?.getElement()?.querySelector('.x-marker')?.classList.remove('hidden');
-        } else {
-          toast('Wszystkie skarby zdobyte! 🎉');
-        }
-      } else {
-        toast('Błędne hasło ❌');
-      }
-    }
-    map.on('click',e=>{
-      if(!state.editing) return;
-      const px=latLngToPx(e.latlng);
-      const id='X'+(TREASURES.length+1);
-      const posPct=[Math.round((px.x/state.imageSize.w)*100),Math.round((px.y/state.imageSize.h)*100)];
-      let hint=prompt('Podaj nazwę/wskazówkę dla skarbu:');
-      if(!hint) return;
-      let code;
-      while(true){
-        code=prompt('Podaj 4-cyfrowe hasło:');
-        if(code===null) return;
-        if(/^\d{4}$/.test(code.trim())) break;
-        toast('Hasło musi mieć dokładnie 4 cyfry.');
-      }
-      const newTreasure={id,posPct,hint:hint.trim(),code:code.trim()};
-      TREASURES.push(newTreasure);
-      addMarker(newTreasure,TREASURES.length===1);
-    });
-    document.getElementById('hintBtn').addEventListener('click',()=>{
-      const remaining=TREASURES.filter(t=>!state.found.has(t.id));
-      if(!remaining.length){ toast('Wszystkie skarby znalezione!'); return; }
-      toast(`Wskazówka: ${remaining[0].hint}`);
-    });
-    document.getElementById('enterCodeBtn').addEventListener('click',checkCodeForCurrent);
-    document.getElementById('resetBtn').addEventListener('click',()=>{state.found.clear();refreshMarkers();});
-    document.getElementById('newGameBtn').addEventListener('click',()=>{
-      TREASURES=[];state.found.clear();refreshMarkers();state.editing=true;toast('Dodaj minimum jeden skarb, klikając na mapie.');
-    });
-    document.getElementById('startBtn').addEventListener('click',()=>{
-      if(TREASURES.length===0){toast('Brak skarbów! Dodaj je najpierw.');return;}
-      state.editing=false;
-      TREASURES.forEach((t,i)=>{
-        const el=markers.get(t.id)?.getElement()?.querySelector('.x-marker');
-        if(!el) return;
-        if(i===0) el.classList.remove('hidden'); else el.classList.add('hidden');
-      });
-      toast('Start gry! Szukaj pierwszego X.');
-    });
-    (async function init(){
-      const img=new Image();
-      img.onload=()=>{
-        state.imageSize={w:img.naturalWidth,h:img.naturalHeight};
-        const w=state.imageSize.w,h=state.imageSize.h;
-        const sw=map.unproject([0,h],getMaxZoomForImage());
-        const ne=map.unproject([w,0],getMaxZoomForImage());
-        const bounds=new L.LatLngBounds(sw,ne);
-        L.imageOverlay(MAP_IMAGE_URL,bounds).addTo(map);
-        map.fitBounds(bounds);
-        map.setMaxBounds(bounds.pad(0.2));
-      };
-      img.src=MAP_IMAGE_URL;
-    })();
-  </script>
+<div id="map"></div>
+<div class="status-bar" id="statusBar">Dodaj skarby aby rozpocząć grę</div>
+<div class="controls">
+  <button class="btn brand" id="hintBtn">🗺️ Podpowiedź</button>
+  <button class="btn" id="resetBtn">🔁 Reset</button>
+  <button class="btn accent" id="newGameBtn">🎯 Nowa gra</button>
+  <button class="btn" id="startBtn">▶️ Start gry</button>
+</div>
+<div style="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 1rem);z-index:1000;">
+  <button class="btn" id="enterPinBtn" style="padding:1rem 1.25rem;font-size:1rem;border:3px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.35);">🔢 Wpisz hasło</button>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const MAP_IMAGE_URL='nowyplan.jpg';
+let TREASURES=[];
+const state={imageSize:null,editing:false,found:new Set()};
+const toast=(m)=>{const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);};
+const updateStatus=()=>{document.getElementById('statusBar').textContent=`Skarby znalezione: ${state.found.size}/${TREASURES.length}`;};
+const map=L.map('map',{crs:L.CRS.Simple,zoomControl:false,minZoom:-2,maxZoom:2});
+let markers=new Map();
+function getMaxZoomForImage(){return 2;}
+function pxToLatLng(x,y){return map.unproject([x,y],getMaxZoomForImage());}
+function latLngToPx(latlng){return map.project(latlng,getMaxZoomForImage());}
+function pctToPx([xp,yp]){const w=state.imageSize.w,h=state.imageSize.h;return [xp/100*w,yp/100*h];}
+function addMarker(t,visible){
+  const iconHtml=`<div class="x-marker ${visible?'':'hidden'} ${state.found.has(t.id)?'found':''}"><b>✖</b></div>`;
+  const icon=L.divIcon({html:iconHtml,className:'',iconSize:[36,36],iconAnchor:[18,18]});
+  const [x,y]=pctToPx(t.posPct);const ll=pxToLatLng(x,y);
+  const m=L.marker(ll,{icon}).addTo(map);
+  markers.set(t.id,m);
+}
+function refreshMarkers(){markers.forEach(m=>map.removeLayer(m));markers.clear();TREASURES.forEach((t,i)=>addMarker(t,i===0));updateStatus();}
+function currentVisibleIndex(){for(let i=0;i<TREASURES.length;i++){if(state.found.has(TREASURES[i].id)) continue;const el=markers.get(TREASURES[i].id)?.getElement()?.querySelector('.x-marker');if(el && !el.classList.contains('hidden')) return i;}return -1;}
+function revealNextById(id){const idx=TREASURES.findIndex(x=>x.id===id);if(idx+1<TREASURES.length){markers.get(TREASURES[idx+1].id)?.getElement()?.querySelector('.x-marker')?.classList.remove('hidden');}else{toast('🎉 Gratulacje! Odnalazłeś wszystkie skarby!');}}
+function trySolveById(id){const t=TREASURES.find(x=>x.id===id);if(!t) return;const el=markers.get(id)?.getElement()?.querySelector('.x-marker');if(!el || el.classList.contains('hidden')){toast('Najpierw odblokuj poprzedni skarb.');return;}let v=prompt(`Wpisz 4-cyfrowe hasło:\n${t.hint||t.id}`);if(v===null)return;v=String(v).trim();if(!/^\d{4}$/.test(v)){toast('Hasło musi mieć dokładnie 4 cyfry.');return;}if(v===t.code){state.found.add(id);el.classList.add('found');toast('Znaleziono skarb! 🏆');revealNextById(id);updateStatus();}else{toast('Błędne hasło ❌');}}
+function showOnlyFirst(){TREASURES.forEach((t,i)=>{const el=markers.get(t.id)?.getElement()?.querySelector('.x-marker');if(!el)return;if(i===0)el.classList.remove('hidden');else el.classList.add('hidden');});updateStatus();}
+map.on('click',e=>{if(!state.editing||!state.imageSize)return;const px=latLngToPx(e.latlng);const id='X'+(TREASURES.length+1);const posPct=[Math.round((px.x/state.imageSize.w)*100),Math.round((px.y/state.imageSize.h)*100)];let hint=prompt('Nazwa (wskazówka) dla skarbu:');if(hint===null)return;hint=hint.trim();if(!hint){toast('Wpisz nazwę/wskazówkę.');return;}let code=null;while(true){const inp=prompt('Ustal 4-cyfrowe hasło dla skarbu:');if(inp===null){code=null;break;}const s=String(inp).trim();if(/^\d{4}$/.test(s)){code=s;break;}toast('Hasło musi mieć dokładnie 4 cyfry.');}if(code===null)return;const t={id,posPct,hint,code};TREASURES.push(t);addMarker(t,TREASURES.length===1);updateStatus();const more=confirm('Dodać kolejny X?');if(!more){state.editing=false;toast('Gotowe. Naciśnij ▶️ Start gry.');}});
+document.getElementById('hintBtn').addEventListener('click',()=>{const i=currentVisibleIndex();if(i===-1){toast(TREASURES.length?'Odblokuj poprzedni skarb.':'Brak punktów — użyj „🎯 Nowa gra”.');return;}toast('Wskazówka: '+(TREASURES[i].hint||'Rozejrzyj się uważnie...'));});
+document.getElementById('enterPinBtn').addEventListener('click',()=>{const i=currentVisibleIndex();if(i===-1){toast(TREASURES.length?'Najpierw odblokuj poprzedni skarb.':'Brak punktów — użyj „🎯 Nowa gra”.');return;}trySolveById(TREASURES[i].id);});
+document.getElementById('resetBtn').addEventListener('click',()=>{state.found.clear();showOnlyFirst();toast('Postęp zresetowany');});
+document.getElementById('newGameBtn').addEventListener('click',()=>{if(!confirm('Rozpocząć nową grę? Obecne punkty zostaną usunięte.'))return;TREASURES=[];state.found.clear();refreshMarkers();state.editing=true;toast('Instrukcja:\n1. Klikaj na mapie, aby dodać skarby (wskazówka + 4-cyfrowy PIN).\n2. Po zakończeniu dodawania kliknij ▶️ Start gry.\n3. Wpisz poprawny PIN, aby odblokować kolejne skarby.');});
+document.getElementById('startBtn').addEventListener('click',()=>{if(TREASURES.length===0){toast('Najpierw dodaj przynajmniej jeden X.');return;}state.editing=false;showOnlyFirst();toast('Start! Szukaj pierwszego X.');});
+(function init(){const img=new Image();img.onload=()=>{state.imageSize={w:img.naturalWidth,h:img.naturalHeight};const w=state.imageSize.w,h=state.imageSize.h;const sw=map.unproject([0,h],getMaxZoomForImage());const ne=map.unproject([w,0],getMaxZoomForImage());const bounds=new L.LatLngBounds(sw,ne);L.imageOverlay(MAP_IMAGE_URL,bounds).addTo(map);map.fitBounds(bounds);map.setMaxBounds(bounds.pad(0.2));};img.src=MAP_IMAGE_URL;})();
+</script>
 </body>
 </html>
