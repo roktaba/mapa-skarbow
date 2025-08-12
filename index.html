@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
@@ -25,160 +26,97 @@
   <div id="map"></div>
   <div class="controls">
     <button class="btn brand" id="hintBtn">🗺️ Podpowiedź</button>
+    <button class="btn" id="enterCodeBtn">🔑 Wpisz hasło</button>
     <button class="btn" id="resetBtn">🔁 Reset</button>
     <button class="btn accent" id="newGameBtn">🎯 Nowa gra</button>
     <button class="btn" id="startBtn">▶️ Start gry</button>
   </div>
   <div class="toast" id="toast">Znaleziono skarb! 🏆</div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const MAP_IMAGE_URL='nowyplan.jpg';
-    const CATCH_RADIUS_PCT=3.5;
-
-    // Skarby: {id,posPct:[x%,y%],hint,code}
     let TREASURES=[];
     const state={imageSize:null,editing:false,found:new Set()};
-
     const toast=(m)=>{const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1400);};
-
     const map=L.map('map',{crs:L.CRS.Simple,zoomControl:false,minZoom:-2,maxZoom:2});
     let markers=new Map();
-
     function getMaxZoomForImage(){return 2;}
     function pxToLatLng(x,y){return map.unproject([x,y],getMaxZoomForImage());}
     function latLngToPx(latlng){return map.project(latlng,getMaxZoomForImage());}
     function pctToPx([xp,yp]){const w=state.imageSize.w,h=state.imageSize.h;return [xp/100*w,yp/100*h];}
-    function catchRadiusPx(){const m=Math.min(state.imageSize.w,state.imageSize.h);return (CATCH_RADIUS_PCT/100)*m;}
-
-    function addMarker(t, visible){
+    function addMarker(t,visible){
       const iconHtml=`<div class="x-marker ${visible?'':'hidden'} ${state.found.has(t.id)?'found':''}"><b>✖</b></div>`;
       const icon=L.divIcon({html:iconHtml,className:'',iconSize:[36,36],iconAnchor:[18,18]});
       const [x,y]=pctToPx(t.posPct);
       const ll=pxToLatLng(x,y);
       const m=L.marker(ll,{icon}).addTo(map);
-
-      m.on('click',()=>{
-        const el=m.getElement()?.querySelector('.x-marker');
-        const isVisible=el && !el.classList.contains('hidden');
-        if(state.editing || !isVisible) return;
-
-        // Trafienie blisko środka X
-        const centerPx=latLngToPx(m.getLatLng());
-        const dist=Math.hypot(centerPx.x-lastTapPx.x,centerPx.y-lastTapPx.y);
-        if(dist>catchRadiusPx()){ toast('Podejdź bliżej miejsca X 👣'); return; }
-
-        // PIN 4 cyfry
-        const v=prompt(`Wpisz 4-cyfrowe hasło:\n${t.hint||t.id}`);
-        if(v===null) return;
-        if(!/^\d{4}$/.test(String(v).trim())){ toast('Hasło musi mieć dokładnie 4 cyfry.'); return; }
-        if(String(v).trim()===t.code){
-          state.found.add(t.id);
-          el.classList.add('found');
-          toast('Znaleziono skarb! 🏆');
-          revealNextById(t.id);
-        } else {
-          toast('Błędne hasło ❌');
-        }
-      });
-
       markers.set(t.id,m);
     }
-
-    function revealNextById(id){
-      const idx=TREASURES.findIndex(x=>x.id===id);
-      if(idx+1<TREASURES.length){
-        const nm=markers.get(TREASURES[idx+1].id);
-        const nel=nm?.getElement()?.querySelector('.x-marker');
-        if(nel) nel.classList.remove('hidden');
-      } else {
-        toast('Wszystkie skarby zdobyte! 🎉');
-      }
-    }
-
     function refreshMarkers(){
       markers.forEach(m=>map.removeLayer(m));
       markers.clear();
-      TREASURES.forEach((t,i)=>addMarker(t,i===0)); // tylko pierwszy widoczny
+      TREASURES.forEach((t,i)=>addMarker(t,i===0));
     }
-
-    function showOnlyFirst(){
+    function checkCodeForCurrent(){
+      const remaining=TREASURES.filter(t=>!state.found.has(t.id));
+      if(!remaining.length){ toast('Wszystkie skarby znalezione!'); return; }
+      const t=remaining[0];
+      const pwd=prompt(`Wpisz 4-cyfrowe hasło:\n${t.hint || t.id}`);
+      if(pwd===null) return;
+      if(!/^\d{4}$/.test(pwd.trim())){ toast('Hasło musi mieć dokładnie 4 cyfry.'); return; }
+      if(pwd.trim()===t.code){
+        state.found.add(t.id);
+        markers.get(t.id)?.getElement()?.querySelector('.x-marker')?.classList.add('found');
+        toast('Znaleziono skarb! 🏆');
+        const idx=TREASURES.findIndex(x=>x.id===t.id);
+        if(idx+1<TREASURES.length){
+          markers.get(TREASURES[idx+1].id)?.getElement()?.querySelector('.x-marker')?.classList.remove('hidden');
+        } else {
+          toast('Wszystkie skarby zdobyte! 🎉');
+        }
+      } else {
+        toast('Błędne hasło ❌');
+      }
+    }
+    map.on('click',e=>{
+      if(!state.editing) return;
+      const px=latLngToPx(e.latlng);
+      const id='X'+(TREASURES.length+1);
+      const posPct=[Math.round((px.x/state.imageSize.w)*100),Math.round((px.y/state.imageSize.h)*100)];
+      let hint=prompt('Podaj nazwę/wskazówkę dla skarbu:');
+      if(!hint) return;
+      let code;
+      while(true){
+        code=prompt('Podaj 4-cyfrowe hasło:');
+        if(code===null) return;
+        if(/^\d{4}$/.test(code.trim())) break;
+        toast('Hasło musi mieć dokładnie 4 cyfry.');
+      }
+      const newTreasure={id,posPct,hint:hint.trim(),code:code.trim()};
+      TREASURES.push(newTreasure);
+      addMarker(newTreasure,TREASURES.length===1);
+    });
+    document.getElementById('hintBtn').addEventListener('click',()=>{
+      const remaining=TREASURES.filter(t=>!state.found.has(t.id));
+      if(!remaining.length){ toast('Wszystkie skarby znalezione!'); return; }
+      toast(`Wskazówka: ${remaining[0].hint}`);
+    });
+    document.getElementById('enterCodeBtn').addEventListener('click',checkCodeForCurrent);
+    document.getElementById('resetBtn').addEventListener('click',()=>{state.found.clear();refreshMarkers();});
+    document.getElementById('newGameBtn').addEventListener('click',()=>{
+      TREASURES=[];state.found.clear();refreshMarkers();state.editing=true;toast('Dodaj minimum jeden skarb, klikając na mapie.');
+    });
+    document.getElementById('startBtn').addEventListener('click',()=>{
+      if(TREASURES.length===0){toast('Brak skarbów! Dodaj je najpierw.');return;}
+      state.editing=false;
       TREASURES.forEach((t,i)=>{
-        const m=markers.get(t.id);
-        const el=m?.getElement()?.querySelector('.x-marker');
+        const el=markers.get(t.id)?.getElement()?.querySelector('.x-marker');
         if(!el) return;
         if(i===0) el.classList.remove('hidden'); else el.classList.add('hidden');
       });
-    }
-
-    let lastTapPx={x:0,y:0};
-    map.on('click',e=>{
-      lastTapPx=latLngToPx(e.latlng);
-      if(!state.editing || !state.imageSize) return;
-
-      const id='X'+(TREASURES.length+1);
-      const posPct=[ Math.round((lastTapPx.x/state.imageSize.w)*100), Math.round((lastTapPx.y/state.imageSize.h)*100) ];
-
-      let hint=prompt('Nazwa (wskazówka) dla skarbu:');
-      if(hint===null) return;
-      hint=hint.trim();
-      if(!hint){ toast('Wpisz nazwę/wskazówkę.'); return; }
-
-      // Walidacja PIN: wymuś 4 cyfry (pętla)
-      let code=null;
-      while(true){
-        const input=prompt('Ustal 4-cyfrowe hasło dla skarbu:');
-        if(input===null){ code=null; break; }
-        const trimmed=String(input).trim();
-        if(/^\d{4}$/.test(trimmed)){ code=trimmed; break; }
-        toast('Hasło musi mieć dokładnie 4 cyfry.');
-      }
-      if(code===null) return;
-
-      const t={id,posPct,hint,code};
-      TREASURES.push(t);
-      addMarker(t, TREASURES.length===1);
-
-      const more=confirm('Dodać kolejny X?');
-      if(!more){ state.editing=false; toast('Gotowe. Naciśnij ▶️ Start gry.'); }
+      toast('Start gry! Szukaj pierwszego X.');
     });
-
-    // UI
-    document.getElementById('hintBtn').addEventListener('click',()=>{
-      // Wskazówka do pierwszego widocznego i niezdobytego X
-      for(let i=0;i<TREASURES.length;i++){
-        const id=TREASURES[i].id;
-        if(state.found.has(id)) continue;
-        const el=markers.get(id)?.getElement()?.querySelector('.x-marker');
-        if(el && !el.classList.contains('hidden')){ toast('Wskazówka: '+(TREASURES[i].hint||'Rozejrzyj się uważnie...')); return; }
-      }
-      toast(TREASURES.length?'Wszystko zdobyte! 🎉':'Brak punktów — użyj „🎯 Nowa gra”.');
-    });
-
-    document.getElementById('resetBtn').addEventListener('click',()=>{
-      state.found.clear();
-      showOnlyFirst();
-      toast('Postęp zresetowany');
-    });
-
-    document.getElementById('newGameBtn').addEventListener('click',()=>{
-      if(!confirm('Rozpocząć nową grę? Obecne punkty zostaną usunięte.')) return;
-      TREASURES=[];
-      state.found.clear();
-      refreshMarkers();
-      state.editing=true;
-      toast('Dodaj co najmniej jeden X. Stuknij w mapę.');
-    });
-
-    document.getElementById('startBtn').addEventListener('click',()=>{
-      if(TREASURES.length===0){ toast('Najpierw dodaj przynajmniej jeden X.'); return; }
-      state.editing=false;
-      showOnlyFirst();
-      toast('Start! Szukaj pierwszego X.');
-    });
-
-    // Init
-    (function init(){
+    (async function init(){
       const img=new Image();
       img.onload=()=>{
         state.imageSize={w:img.naturalWidth,h:img.naturalHeight};
