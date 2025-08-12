@@ -33,7 +33,6 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const MAP_IMAGE_URL = 'nowyplan.jpg';
-    const CATCH_RADIUS_PCT = 3.5;
     let TREASURES = [];
     const state = { imageSize: null, editing: false, found: new Set() };
     const toast = (msg) => { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1400); };
@@ -43,14 +42,15 @@
     function pxToLatLng(x, y) { return map.unproject([x, y], getMaxZoomForImage()); }
     function latLngToPx(latlng) { return map.project(latlng, getMaxZoomForImage()); }
     function pctToPx(posPct) { const w = state.imageSize.w, h = state.imageSize.h; return [ (posPct[0] / 100) * w, (posPct[1] / 100) * h ]; }
-    function addMarker(t, visible) {
+    function addMarker(t, index) {
+      const visible = index === 0; // tylko pierwszy X widoczny
       const iconHtml = `<div class="x-marker ${!visible ? 'hidden' : ''} ${state.found.has(t.id) ? 'found' : ''}"><b>✖</b></div>`;
       const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
       const [x, y] = pctToPx(t.posPct);
       const ll = pxToLatLng(x, y);
       const m = L.marker(ll, { icon }).addTo(map);
       m.on('click', () => {
-        if (!state.editing && visible) {
+        if (!state.editing && !m.getElement().querySelector('.x-marker').classList.contains('hidden')) {
           const pwd = prompt('Podaj 4-cyfrowe hasło:');
           if (pwd === t.code) {
             state.found.add(t.id);
@@ -72,7 +72,7 @@
     function refreshMarkers() {
       markers.forEach(m => map.removeLayer(m));
       markers.clear();
-      TREASURES.forEach((t, i) => addMarker(t, i === 0));
+      TREASURES.forEach((t, i) => addMarker(t, i));
     }
     map.on('click', (e) => {
       if (state.editing) {
@@ -85,13 +85,17 @@
         if (!/^\d{4}$/.test(code)) { toast('Hasło musi mieć 4 cyfry'); return; }
         const newTreasure = { id, posPct, hint: hint.trim(), code: code };
         TREASURES.push(newTreasure);
-        addMarker(newTreasure, TREASURES.length === 1);
+        refreshMarkers();
       }
     });
     document.getElementById('hintBtn').addEventListener('click', () => {
       const remaining = TREASURES.filter(t => !state.found.has(t.id));
       if (!remaining.length) { toast('Wszystkie skarby znalezione!'); return; }
-      toast(`Wskazówka: ${remaining[0].hint}`);
+      const firstVisible = remaining.find(t => {
+        const markerEl = markers.get(t.id)?.getElement()?.querySelector('.x-marker');
+        return markerEl && !markerEl.classList.contains('hidden');
+      });
+      if (firstVisible) toast(`Wskazówka: ${firstVisible.hint}`);
     });
     document.getElementById('resetBtn').addEventListener('click', () => { state.found.clear(); refreshMarkers(); });
     document.getElementById('newGameBtn').addEventListener('click', () => { TREASURES = []; state.found.clear(); refreshMarkers(); state.editing = true; toast('Dodaj skarby na mapie'); });
