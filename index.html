@@ -62,7 +62,7 @@
     <div id="map"></div><div class="controls">
   <button class="btn brand big" id="hintBtn">🗺️ Podpowiedź</button>
   <button class="btn big" id="resetBtn">🔁 Reset</button>
-  <button class="btn big" id="addBtn" title="Tryb edycji: dodawaj nowe skarby">➕ Dodaj punkt</button>
+  <button class="btn big accent" id="addBtn" title="Tryb edycji: dodawaj nowe skarby">➕ Dodaj punkt</button>
   <button class="btn big" id="exportBtn" title="Eksportuj punkty jako JSON">📤 Eksport</button>
 </div>
 
@@ -72,40 +72,21 @@
     <span id="counter">0/0</span>
   </div>
   <div class="progress"><i id="bar"></i></div>
-  <div id="clue" style="margin-top:.6rem; color: var(--muted); font-weight: 600;">Dotknij mapy, by zbliżyć. Szukaj X! 🧭</div>
+  <div id="clue" style="margin-top:.6rem; color: var(--muted); font-weight: 600;">Tryb edycji: stuknij na mapie, aby dodać X i wpisz wskazówkę. Gdy skończysz, wyłącz „➕ Dodaj punkt” i zacznij zabawę! 🧭</div>
 </div>
 
   </div>  <div class="toast" id="toast">Znaleziono skarb! 🏆</div>  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>  <script>
     // === USTAWIENIA ===
-    // Ze względów na bezpieczeństwo i instalację PWA używamy lokalnego pliku z mapą.
-    // 1) Pobierz obraz z: http://osrodek.ibwpan.gda.pl/files/9112/9803/3356/nowyplan.jpg
-    // 2) Zapisz go obok tego pliku jako: nowyplan.jpg
-    // Jeśli bardzo chcesz użyć zdalnego URL, podaj go tu, ale pamiętaj o HTTPS (inaczej przeglądarka zablokuje):
     const MAP_IMAGE_URL = 'nowyplan.jpg';
+    const CATCH_RADIUS_PCT = 3.5; // promień trafienia (łagodny dla 7-latka)
 
-    // Promień trafienia w % krótszego boku obrazu (łatwiejsza skala dla różnych rozdzielczości)
-    const CATCH_RADIUS_PCT = 3.5; // dla 7-latka: dość wybaczające (ok. 3–5% polecam)
+    // Na start brak punktów — dodajesz je sam, z własnymi wskazówkami
+    let TREASURES = [];
 
-    // Lista skarbów: pozycje w PROCENTACH 0–100 względem szerokości/wysokości obrazu
-    // posPct: [x%, y%]
-    let TREASURES = [
-      { id: 'X1',  posPct: [12, 18], title: 'Skarb 1', hint: 'Tam, gdzie zaczyna się plażowa ścieżka.' },
-      { id: 'X2',  posPct: [28, 35], title: 'Skarb 2', hint: 'Przy ławce w cieniu drzew.' },
-      { id: 'X3',  posPct: [45, 22], title: 'Skarb 3', hint: 'Blisko recepcji i mapy ośrodka.' },
-      { id: 'X4',  posPct: [65, 18], title: 'Skarb 4', hint: 'Spójrz w stronę molo lub pomostu.' },
-      { id: 'X5',  posPct: [80, 30], title: 'Skarb 5', hint: 'Między dwiema ścieżkami jak rozgałęzienie.' },
-      { id: 'X6',  posPct: [15, 60], title: 'Skarb 6', hint: 'Niedaleko placu zabaw (huśtawki!).' },
-      { id: 'X7',  posPct: [35, 55], title: 'Skarb 7', hint: 'Przy krzakach, które szumią jak morze.' },
-      { id: 'X8',  posPct: [55, 65], title: 'Skarb 8', hint: 'Obok szerokiej polany do biegania.' },
-      { id: 'X9',  posPct: [75, 75], title: 'Skarb 9', hint: 'Za zakrętem, gdzie ścieżka robi „S”.' },
-      { id: 'X10', posPct: [50, 85], title: 'Skarb 10', hint: 'Prawie na końcu drogi — jeszcze kawałek!' },
-    ];
-
-    // === KONIEC USTAWIEŃ ===
-
+    // === STAN ===
     const state = {
-      imageSize: null, // {w,h}
-      editing: false,
+      imageSize: null,
+      editing: true, // startujemy w trybie edycji
       found: new Set(JSON.parse(localStorage.getItem('foundTreasures') || '[]')),
     };
 
@@ -116,36 +97,17 @@
       setTimeout(() => el.classList.remove('show'), 1400);
     };
 
-    // Inicjalizacja mapy z niestandardową projekcją obrazka
-    const map = L.map('map', {
-      crs: L.CRS.Simple,
-      zoomControl: false,
-      minZoom: -2,
-      maxZoom: 2,
-      inertia: true,
-    });
+    const map = L.map('map', { crs: L.CRS.Simple, zoomControl: false, minZoom: -2, maxZoom: 2, inertia: true });
 
-    let imageOverlay;
     let markers = new Map();
 
     function getMaxZoomForImage() { return 2; }
-
-    function pctToPx(posPct) {
-      const w = state.imageSize.w, h = state.imageSize.h;
-      return [ (posPct[0] / 100) * w, (posPct[1] / 100) * h ];
-    }
-
     function pxToLatLng(x, y) { return map.unproject([x, y], getMaxZoomForImage()); }
     function latLngToPx(latlng) { return map.project(latlng, getMaxZoomForImage()); }
 
-    function catchRadiusPx() {
-      const m = Math.min(state.imageSize.w, state.imageSize.h);
-      return (CATCH_RADIUS_PCT / 100) * m;
-    }
-
     function updateProgressUI() {
       const total = TREASURES.length;
-      const foundCount = state.found.size;
+      const foundCount = [...state.found].filter(id => TREASURES.some(t => t.id === id)).length; // tylko obecne cele
       document.getElementById('counter').textContent = `${foundCount}/${total}`;
       const pct = total ? Math.round((foundCount/total)*100) : 0;
       document.getElementById('bar').style.width = pct + '%';
@@ -154,13 +116,38 @@
     function saveFound() { localStorage.setItem('foundTreasures', JSON.stringify([...state.found])); }
     function setClue(text) { document.getElementById('clue').textContent = text; }
 
+    function pctToPx(posPct) { const w = state.imageSize.w, h = state.imageSize.h; return [ (posPct[0] / 100) * w, (posPct[1] / 100) * h ]; }
+    function catchRadiusPx() { const m = Math.min(state.imageSize.w, state.imageSize.h); return (CATCH_RADIUS_PCT / 100) * m; }
+
     function addMarker(t) {
       const iconHtml = `<div class="x-marker ${state.found.has(t.id) ? 'found' : ''}"><b>✖</b></div>`;
       const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
-      const [x, y] = t.posPct ? pctToPx(t.posPct) : t.pos; // kompatybilność
+      const [x, y] = t.posPct ? pctToPx(t.posPct) : t.pos;
       const ll = pxToLatLng(x, y);
       const m = L.marker(ll, { icon }).addTo(map);
-      m.on('click', () => onChestTap(t, m));
+      m.on('click', () => {
+        if (state.editing) {
+          // Edycja wskazówki / usunięcie punktu
+          const current = t.hint || '';
+          const msg = `Wpisz nową wskazówkę dla ${t.id} (zostaw puste, by nie zmieniać).
+Aby USUNĄĆ punkt, wpisz dokładnie: USUŃ`;
+          const val = prompt(msg, current);
+          if (val === null) return; // anulowano
+          if (val.trim().toUpperCase() === 'USUŃ') {
+            // usuń z listy i z mapy
+            TREASURES = TREASURES.filter(x => x.id !== t.id);
+            if (markers.has(t.id)) { map.removeLayer(markers.get(t.id)); markers.delete(t.id); }
+            state.found.delete(t.id);
+            saveFound();
+            updateProgressUI();
+            setClue(`Usunięto ${t.id}.`);
+            return;
+          }
+          if (val.trim() !== '') { t.hint = val.trim(); setClue(`Zmieniono wskazówkę dla ${t.id}.`); }
+        } else {
+          onChestTap(t, m);
+        }
+      });
       markers.set(t.id, m);
     }
 
@@ -183,31 +170,32 @@
           state.found.add(t.id);
           saveFound();
           toast('Znaleziono skarb! 🏆');
-          const el = marker.getElement();
-          if (el) el.querySelector('.x-marker')?.classList.add('found');
+          marker.getElement()?.querySelector('.x-marker')?.classList.add('found');
           updateProgressUI();
-          if (state.found.size === TREASURES.length) { setClue('Brawo! Odnalazłeś wszystkie skarby! 🎉'); }
-        } else { toast('Ten skarb już masz ✔️'); }
+          if ([...state.found].filter(id => TREASURES.some(x => x.id === id)).length === TREASURES.length) {
+            setClue('Brawo! Odnalazłeś wszystkie skarby! 🎉');
+          }
+        } else {
+          toast('Ten skarb już masz ✔️');
+        }
       } else {
         toast('Jesteś blisko! Spróbuj podejść dokładniej 👣');
       }
     }
 
-    // Wskazówka: pokaż losową podpowiedź do skarbu nieodnalezionego
     function showHint() {
       const remaining = TREASURES.filter(t => !state.found.has(t.id));
-      if (!remaining.length) { setClue('Wszystko znalezione! 🎉'); return; }
+      if (!remaining.length) { setClue(TREASURES.length ? 'Wszystko znalezione! 🎉' : 'Brak punktów — włącz „➕ Dodaj punkt” i dotknij mapy.'); return; }
       const t = remaining[Math.floor(Math.random()*remaining.length)];
       setClue(`Wskazówka: ${t.hint || 'Rozejrzyj się uważnie...'}`);
       const [x, y] = t.posPct ? pctToPx(t.posPct) : t.pos;
       map.setView(pxToLatLng(x, y), 1, { animate: true });
     }
 
-    // Tryb edycji — dodawanie punktów dotknięciem (zapis w %)
     function toggleEdit() {
       state.editing = !state.editing;
       document.getElementById('addBtn').classList.toggle('accent', state.editing);
-      setClue(state.editing ? 'Tryb edycji: stuknij na mapie, aby dodać X.' : 'Tryb edycji wyłączony.');
+      setClue(state.editing ? 'Tryb edycji: stuknij na mapie, aby dodać X i wpisz wskazówkę.' : 'Tryb zabawy: stukaj w X i szukaj skarbów!');
     }
 
     function exportJSON() {
@@ -226,17 +214,20 @@
       setClue('Postęp wyzerowany. Powodzenia!');
     }
 
+    // Kliknięcie na mapie: dodaje nowy X z własną wskazówką (tylko w trybie edycji)
     map.on('click', (e) => {
       const px = latLngToPx(e.latlng);
       lastTapPx = { x: px.x, y: px.y };
       if (state.editing && state.imageSize) {
         const id = 'X' + (TREASURES.length + 1);
         const posPct = [ Math.round((px.x/state.imageSize.w)*100), Math.round((px.y/state.imageSize.h)*100) ];
-        const newTreasure = { id, posPct, title: 'Nowy punkt', hint: 'Dodaj opis' };
+        let hint = prompt('Podaj wskazówkę dla tego skarbu (np. "Przy placu zabaw pod sosną").');
+        if (hint === null) { hint = ''; }
+        const newTreasure = { id, posPct, title: `Skarb ${TREASURES.length+1}`, hint: hint.trim() };
         TREASURES.push(newTreasure);
         addMarker(newTreasure);
         updateProgressUI();
-        setClue(`Dodano X ${id} (${posPct[0]}%, ${posPct[1]}%)`);
+        setClue(`Dodano ${id}. Wskazówka: ${newTreasure.hint || '—'}`);
       }
     });
 
@@ -246,54 +237,38 @@
     document.getElementById('addBtn').addEventListener('click', toggleEdit);
     document.getElementById('exportBtn').addEventListener('click', exportJSON);
 
-    // Załaduj obraz i skonfiguruj mapę
+    // Inicjalizacja i PWA
     (async function init() {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         state.imageSize = { w: img.naturalWidth, h: img.naturalHeight };
-        const w = state.imageSize.w; const h = state.imageSize.h;
+        const w = state.imageSize.w, h = state.imageSize.h;
         const southWest = map.unproject([0, h], getMaxZoomForImage());
         const northEast = map.unproject([w, 0], getMaxZoomForImage());
         const bounds = new L.LatLngBounds(southWest, northEast);
-        imageOverlay = L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map);
+        L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map);
         map.fitBounds(bounds);
         map.setMaxBounds(bounds.pad(0.2));
         refreshMarkers();
       };
-      img.onerror = () => { setClue('Nie udało się wczytać obrazu mapy. Upewnij się, że plik nowyplan.jpg leży obok index.html.'); };
+      img.onerror = () => setClue('Nie udało się wczytać obrazu mapy. Upewnij się, że plik nowyplan.jpg leży obok index.html.');
       img.src = MAP_IMAGE_URL;
 
-      // PWA: dynamiczny manifest z ikonami rysowanymi w locie
+      // Manifest i SW
       const makeIcon = (size) => {
-        const c = document.createElement('canvas');
-        c.width = c.height = size; const ctx = c.getContext('2d');
+        const c = document.createElement('canvas'); c.width = c.height = size; const ctx = c.getContext('2d');
         ctx.fillStyle = '#ff7a00'; ctx.fillRect(0,0,size,size);
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(8, size*0.08);
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(size*0.25, size*0.25); ctx.lineTo(size*0.75, size*0.75);
-        ctx.moveTo(size*0.75, size*0.25); ctx.lineTo(size*0.25, size*0.75);
-        ctx.stroke();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(8, size*0.08); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(size*0.25, size*0.25); ctx.lineTo(size*0.75, size*0.75); ctx.moveTo(size*0.75, size*0.25); ctx.lineTo(size*0.25, size*0.75); ctx.stroke();
         return c.toDataURL('image/png');
       };
-      const manifest = {
-        name: 'Mapa Skarbów',
-        short_name: 'Skarby',
-        start_url: '.',
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#ff7a00',
-        icons: [192, 512].map(s => ({ src: makeIcon(s), sizes: `${s}x${s}`, type: 'image/png' }))
-      };
+      const manifest = { name: 'Mapa Skarbów', short_name: 'Skarby', start_url: '.', display: 'standalone', background_color: '#ffffff', theme_color: '#ff7a00', icons: [192,512].map(s=>({src:makeIcon(s),sizes:`${s}x${s}`,type:'image/png'})) };
       const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-      const murl = URL.createObjectURL(blob);
-      const link = document.createElement('link');
-      link.rel = 'manifest'; link.href = murl; document.head.appendChild(link);
+      const murl = URL.createObjectURL(blob); const link = document.createElement('link'); link.rel = 'manifest'; link.href = murl; document.head.appendChild(link);
 
-      // PWA: prosty Service Worker (wymagany przez Android Chrome do instalacji)
       if ('serviceWorker' in navigator) {
-        const swCode = `const CACHE='skarb-cache-v1';
+        const swCode = `const CACHE='skarb-cache-v2';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html','./nowyplan.jpg'])))});
 self.addEventListener('activate',e=>clients.claim());
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{}); return res;})).catch(()=>caches.match('./index.html')))});`;
