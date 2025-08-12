@@ -16,39 +16,30 @@
       --muted: #94a3b8;
       --card: #ffffff;
       --danger: #e11d48;
-      --x-size: 22px; /* rozmiar X (możesz zmienić na 18–26px) */
+      --x-size: 22px;
     }
     html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
     .app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
     header { display:flex; align-items:center; gap:.6rem; padding: .8rem 1rem; background: var(--card); box-shadow: 0 2px 10px rgba(0,0,0,.06); position: sticky; top: 0; z-index: 1000; }
     header h1 { font-size: 1.1rem; margin: 0; }
-    header .badge { background: var(--brand); color: #fff; padding: .2rem .5rem; border-radius: 999px; font-weight: 700; font-size: .8rem; }#map { width: 100%; height: 100%; }
-.controls { position: absolute; top: 3.5rem; left: .75rem; z-index: 900; display: grid; gap:.4rem; }
-.btn { appearance: none; border: 0; background: var(--card); color: var(--fg); padding: .55rem .7rem; border-radius: .8rem; box-shadow: 0 4px 16px rgba(0,0,0,.12); font-weight: 700; font-size: .9rem; }
-.btn:active { transform: translateY(1px); }
-.btn.brand { background: var(--brand); color: #fff; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-.btn.accent { background: var(--accent); color: #fff; }
-
-.panel { background: var(--card); padding: .8rem; border-top-left-radius: 1rem; border-top-right-radius: 1rem; box-shadow: 0 -8px 24px rgba(0,0,0,.08); }
-.row { display: flex; align-items: center; justify-content: space-between; gap:.5rem; }
-.progress { width: 100%; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
-.progress > i { display:block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--brand), var(--accent)); transition: width .3s ease; }
-
-.toast { position: fixed; left: 50%; bottom: 6rem; transform: translateX(-50%); background: #111827; color: #fff; padding: .7rem .9rem; border-radius: .8rem; box-shadow: 0 8px 20px rgba(0,0,0,.3); font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
-.toast.show { opacity: 1; }
-
-.leaflet-container { background: #dfe7ee; }
-/* Marker X: bez tła, mniejszy, z obrysem tekstu dla czytelności */
-.x-marker { width: 100%; height: 100%; background: transparent; border: none; padding: 0; display: grid; place-items: center; }
-.x-marker > b { font-size: var(--x-size); color: var(--danger); -webkit-text-stroke: 2px #ffffff; text-shadow: 0 1px 0 #fff, 0 0 6px rgba(0,0,0,.35); line-height: 1; }
-.x-marker.found { opacity: .35; filter: grayscale(1); }
-.big { font-size: 1rem; padding: .8rem 1rem; }
-
-@media (display-mode: standalone) {
-  header { display:none; }
-  .panel { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
-}
-
+    header .badge { background: var(--brand); color: #fff; padding: .2rem .5rem; border-radius: 999px; font-weight: 700; font-size: .8rem; }
+    #map { width: 100%; height: 100%; }
+    .controls { position: absolute; top: 3.5rem; left: .75rem; z-index: 900; display: grid; gap:.4rem; }
+    .btn { appearance: none; border: 0; background: var(--card); color: var(--fg); padding: .55rem .7rem; border-radius: .8rem; box-shadow: 0 4px 16px rgba(0,0,0,.12); font-weight: 700; font-size: .9rem; }
+    .btn:active { transform: translateY(1px); }
+    .btn.brand { background: var(--brand); color: #fff; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .btn.accent { background: var(--accent); color: #fff; }
+    .panel { background: var(--card); padding: .8rem; border-top-left-radius: 1rem; border-top-right-radius: 1rem; box-shadow: 0 -8px 24px rgba(0,0,0,.08); }
+    .row { display: flex; align-items: center; justify-content: space-between; gap:.5rem; }
+    .progress { width: 100%; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress > i { display:block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--brand), var(--accent)); transition: width .3s ease; }
+    .toast { position: fixed; left: 50%; bottom: 6rem; transform: translateX(-50%); background: #111827; color: #fff; padding: .7rem .9rem; border-radius: .8rem; box-shadow: 0 8px 20px rgba(0,0,0,.3); font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+    .toast.show { opacity: 1; }
+    .leaflet-container { background: #dfe7ee; }
+    .x-marker { background: transparent; border: none; padding: 0; display: grid; place-items: center; }
+    .x-marker > b { font-size: var(--x-size); color: var(--danger); -webkit-text-stroke: 2px #ffffff; text-shadow: 0 1px 0 #fff, 0 0 6px rgba(0,0,0,.35); line-height: 1; }
+    .x-marker.found { opacity: .35; filter: grayscale(1); }
+    .big { font-size: 1rem; padding: .8rem 1rem; }
   </style>
 </head>
 <body>
@@ -57,188 +48,47 @@
       <span class="badge">🎒</span>
       <h1>Mapa Skarbów</h1>
     </header>
-    <div id="map"></div><div class="controls">
-  <button class="btn brand big" id="hintBtn">🗺️ Podpowiedź</button>
-  <button class="btn big" id="resetBtn">🔁 Reset</button>
-  <button class="btn big accent" id="addBtn" title="Tryb edycji: dodawaj nowe skarby">➕ Dodaj punkt</button>
-  <button class="btn big" id="exportBtn" title="Eksportuj punkty jako JSON">📤 Eksport</button>
-</div>
-
-<div class="panel">
-  <div class="row" style="margin-bottom:.6rem">
-    <strong>Postęp</strong>
-    <span id="counter">0/0</span>
+    <div id="map"></div>
+    <div class="controls">
+      <button class="btn brand big" id="hintBtn">🗺️ Podpowiedź</button>
+      <button class="btn big" id="resetBtn">🔁 Reset</button>
+      <button class="btn big accent" id="newGameBtn">🎯 Nowa gra</button>
+    </div>
+    <div class="panel">
+      <div class="row" style="margin-bottom:.6rem">
+        <strong>Postęp</strong>
+        <span id="counter">0/0</span>
+      </div>
+      <div class="progress"><i id="bar"></i></div>
+      <div id="clue" style="margin-top:.6rem; color: var(--muted); font-weight: 600;">Rozpocznij nową grę, aby dodać skarby 🧭</div>
+    </div>
   </div>
-  <div class="progress"><i id="bar"></i></div>
-  <div id="clue" style="margin-top:.6rem; color: var(--muted); font-weight: 600;">Tryb edycji: stuknij na mapie, aby dodać X i wpisz wskazówkę. Gdy skończysz, wyłącz „➕ Dodaj punkt” i zacznij zabawę! 🧭</div>
-</div>
-
-  </div>  <div class="toast" id="toast">Znaleziono skarb! 🏆</div>  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>  <script>
-    // === USTAWIENIA ===
+  <div class="toast" id="toast">Znaleziono skarb! 🏆</div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
     const MAP_IMAGE_URL = 'nowyplan.jpg';
-    const CATCH_RADIUS_PCT = 3.5; // promień „trafienia” względem krótszego boku mapy
-
-    // Start bez punktów – dodajesz je sam wraz ze wskazówkami
+    const CATCH_RADIUS_PCT = 3.5;
     let TREASURES = [];
-
-    // === STAN ===
-    const state = {
-      imageSize: null,
-      editing: true, // start w trybie edycji
-      found: new Set(JSON.parse(localStorage.getItem('foundTreasures') || '[]')),
-    };
-
+    const state = { imageSize: null, editing: false, found: new Set(JSON.parse(localStorage.getItem('foundTreasures') || '[]')) };
     const toast = (msg) => { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1400); };
-
     const map = L.map('map', { crs: L.CRS.Simple, zoomControl: false, minZoom: -2, maxZoom: 2, inertia: true });
-
     let markers = new Map();
-
     function getMaxZoomForImage() { return 2; }
     function pxToLatLng(x, y) { return map.unproject([x, y], getMaxZoomForImage()); }
     function latLngToPx(latlng) { return map.project(latlng, getMaxZoomForImage()); }
-
     function pctToPx(posPct) { const w = state.imageSize.w, h = state.imageSize.h; return [ (posPct[0] / 100) * w, (posPct[1] / 100) * h ]; }
     function catchRadiusPx() { const m = Math.min(state.imageSize.w, state.imageSize.h); return (CATCH_RADIUS_PCT / 100) * m; }
-
-    function updateProgressUI() {
-      const total = TREASURES.length;
-      const foundCount = [...state.found].filter(id => TREASURES.some(t => t.id === id)).length; // tylko istniejące
-      document.getElementById('counter').textContent = `${foundCount}/${total}`;
-      const pct = total ? Math.round((foundCount/total)*100) : 0;
-      document.getElementById('bar').style.width = pct + '%';
-    }
-
+    function updateProgressUI() { const total = TREASURES.length; const foundCount = [...state.found].filter(id => TREASURES.some(t => t.id === id)).length; document.getElementById('counter').textContent = `${foundCount}/${total}`; const pct = total ? Math.round((foundCount/total)*100) : 0; document.getElementById('bar').style.width = pct + '%'; }
     function saveFound() { localStorage.setItem('foundTreasures', JSON.stringify([...state.found])); }
     function setClue(text) { document.getElementById('clue').textContent = text; }
-
-    function addMarker(t) {
-      // Mniejszy X, brak tła; większy niewidoczny obszar kliku (36x36) zachowany dla wygody trafiania
-      const iconHtml = `<div class="x-marker ${state.found.has(t.id) ? 'found' : ''}"><b>✖</b></div>`;
-      const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
-      const [x, y] = t.posPct ? pctToPx(t.posPct) : t.pos; // kompatybilnie z ewentualnym importem
-      const ll = pxToLatLng(x, y);
-      const m = L.marker(ll, { icon }).addTo(map);
-      m.on('click', () => {
-        if (state.editing) {
-          const current = t.hint || '';
-          const msg = `Wpisz nową wskazówkę dla ${t.id} (zostaw puste, by nie zmieniać).
-Aby USUNĄĆ punkt, wpisz dokładnie: USUŃ`;
-          const val = prompt(msg, current);
-          if (val === null) return; // anulowano
-          if (val.trim().toUpperCase() === 'USUŃ') {
-            TREASURES = TREASURES.filter(x => x.id !== t.id);
-            if (markers.has(t.id)) { map.removeLayer(markers.get(t.id)); markers.delete(t.id); }
-            state.found.delete(t.id);
-            saveFound();
-            updateProgressUI();
-            setClue(`Usunięto ${t.id}.`);
-            return;
-          }
-          if (val.trim() !== '') { t.hint = val.trim(); setClue(`Zmieniono wskazówkę dla ${t.id}.`); }
-        } else {
-          onChestTap(t, m);
-        }
-      });
-      markers.set(t.id, m);
-    }
-
+    function addMarker(t) { const iconHtml = `<div class=\"x-marker ${state.found.has(t.id) ? 'found' : ''}\"><b>✖</b></div>`; const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [36, 36], iconAnchor: [18, 18] }); const [x, y] = pctToPx(t.posPct); const ll = pxToLatLng(x, y); const m = L.marker(ll, { icon }).addTo(map); m.on('click', () => { if (!state.editing) { const pwd = prompt('Podaj 4-cyfrowe hasło, aby otworzyć skarb:'); if (pwd === t.code) { state.found.add(t.id); saveFound(); toast('Znaleziono skarb! 🏆'); markerFound(m); updateProgressUI(); } else { toast('Błędne hasło ❌'); } } }); markers.set(t.id, m); }
+    function markerFound(m) { m.getElement()?.querySelector('.x-marker')?.classList.add('found'); }
     function refreshMarkers() { markers.forEach(m => map.removeLayer(m)); markers.clear(); TREASURES.forEach(addMarker); updateProgressUI(); }
-
-    let lastTapPx = { x: 0, y: 0 };
-
-    function onChestTap(t, marker) {
-      if (!state.imageSize) return;
-      const center = marker.getLatLng();
-      const centerPx = latLngToPx(center);
-      const dist = Math.hypot(centerPx.x - lastTapPx.x, centerPx.y - lastTapPx.y);
-      if (dist <= catchRadiusPx()) {
-        if (!state.found.has(t.id)) {
-          state.found.add(t.id);
-          saveFound();
-          toast('Znaleziono skarb! 🏆');
-          marker.getElement()?.querySelector('.x-marker')?.classList.add('found');
-          updateProgressUI();
-          if ([...state.found].filter(id => TREASURES.some(x => x.id === id)).length === TREASURES.length) {
-            setClue('Brawo! Odnalazłeś wszystkie skarby! 🎉');
-          }
-        } else { toast('Ten skarb już masz ✔️'); }
-      } else { toast('Jesteś blisko! Spróbuj podejść dokładniej 👣'); }
-    }
-
-    function showHint() {
-      const remaining = TREASURES.filter(t => !state.found.has(t.id));
-      if (!remaining.length) { setClue(TREASURES.length ? 'Wszystko znalezione! 🎉' : 'Brak punktów — włącz „➕ Dodaj punkt” i dotknij mapy.'); return; }
-      const t = remaining[Math.floor(Math.random()*remaining.length)];
-      setClue(`Wskazówka: ${t.hint || 'Rozejrzyj się uważnie...'}`);
-      const [x, y] = t.posPct ? pctToPx(t.posPct) : t.pos;
-      map.setView(pxToLatLng(x, y), 1, { animate: true });
-    }
-
-    function toggleEdit() {
-      state.editing = !state.editing;
-      document.getElementById('addBtn').classList.toggle('accent', state.editing);
-      setClue(state.editing ? 'Tryb edycji: stuknij na mapie, aby dodać X i wpisz wskazówkę.' : 'Tryb zabawy: stukaj w X i szukaj skarbów!');
-    }
-
-    function exportJSON() {
-      const json = JSON.stringify(TREASURES, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'skarbypunkty.json'; a.click(); URL.revokeObjectURL(url);
-    }
-
-    function resetProgress() { state.found.clear(); saveFound(); refreshMarkers(); setClue('Postęp wyzerowany. Powodzenia!'); }
-
-    // Klik na mapie — dodawanie X ze wskazówką (tylko w trybie edycji)
-    map.on('click', (e) => {
-      const px = latLngToPx(e.latlng);
-      lastTapPx = { x: px.x, y: px.y };
-      if (state.editing && state.imageSize) {
-        const id = 'X' + (TREASURES.length + 1);
-        const posPct = [ Math.round((px.x/state.imageSize.w)*100), Math.round((px.y/state.imageSize.h)*100) ];
-        let hint = prompt('Podaj wskazówkę dla tego skarbu (np. "Przy placu zabaw pod sosną").');
-        if (hint === null) { hint = ''; }
-        const newTreasure = { id, posPct, title: `Skarb ${TREASURES.length+1}`, hint: hint.trim() };
-        TREASURES.push(newTreasure);
-        addMarker(newTreasure);
-        updateProgressUI();
-        setClue(`Dodano ${id}. Wskazówka: ${newTreasure.hint || '—'}`);
-      }
-    });
-
-    // Przyciski
-    document.getElementById('hintBtn').addEventListener('click', showHint);
-    document.getElementById('resetBtn').addEventListener('click', resetProgress);
-    document.getElementById('addBtn').addEventListener('click', toggleEdit);
-    document.getElementById('exportBtn').addEventListener('click', exportJSON);
-
-    // Init + PWA
-    (async function init() {
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        state.imageSize = { w: img.naturalWidth, h: img.naturalHeight };
-        const w = state.imageSize.w, h = state.imageSize.h;
-        const southWest = map.unproject([0, h], getMaxZoomForImage());
-        const northEast = map.unproject([w, 0], getMaxZoomForImage());
-        const bounds = new L.LatLngBounds(southWest, northEast);
-        L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map);
-        map.fitBounds(bounds);
-        map.setMaxBounds(bounds.pad(0.2));
-        refreshMarkers();
-      };
-      img.onerror = () => setClue('Nie udało się wczytać obrazu mapy. Upewnij się, że plik nowyplan.jpg jest obok index.html.');
-      img.src = MAP_IMAGE_URL;
-
-      if ('serviceWorker' in navigator) {
-        const swCode = `const CACHE='skarb-cache-v4';
-self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html','./nowyplan.jpg'])))});
-self.addEventListener('activate',e=>clients.claim());
-self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res;})).catch(()=>caches.match('./index.html')))});`;
-        const swBlob = new Blob([swCode], {type: 'text/javascript'});
-        const swUrl = URL.createObjectURL(swBlob);
-        window.addEventListener('load', () => navigator.serviceWorker.register(swUrl));
-      }
-    })();
-  </script></body>
+    map.on('click', (e) => { if (state.editing) { const px = latLngToPx(e.latlng); const id = 'X' + (TREASURES.length + 1); const posPct = [ Math.round((px.x/state.imageSize.w)*100), Math.round((px.y/state.imageSize.h)*100) ]; let hint = prompt('Podaj nazwę/wskazówkę dla skarbu:'); if (!hint) return; let code = prompt('Podaj 4-cyfrowe hasło:'); if (!/^\d{4}$/.test(code)) { toast('Hasło musi mieć 4 cyfry'); return; } const newTreasure = { id, posPct, hint: hint.trim(), code: code }; TREASURES.push(newTreasure); addMarker(newTreasure); updateProgressUI(); setClue(`Dodano ${id}. Możesz dodać kolejne lub zakończyć.`); } });
+    document.getElementById('hintBtn').addEventListener('click', () => { const remaining = TREASURES.filter(t => !state.found.has(t.id)); if (!remaining.length) { setClue('Wszystkie skarby znalezione!'); return; } const t = remaining[Math.floor(Math.random()*remaining.length)]; setClue(`Wskazówka: ${t.hint}`); });
+    document.getElementById('resetBtn').addEventListener('click', () => { state.found.clear(); saveFound(); refreshMarkers(); setClue('Postęp zresetowany'); });
+    document.getElementById('newGameBtn').addEventListener('click', () => { TREASURES = []; state.found.clear(); saveFound(); refreshMarkers(); state.editing = true; setClue('Dodaj minimum jeden skarb, klikając na mapie.'); });
+    (async function init() { const img = new Image(); img.onload = () => { state.imageSize = { w: img.naturalWidth, h: img.naturalHeight }; const w = state.imageSize.w, h = state.imageSize.h; const southWest = map.unproject([0, h], getMaxZoomForImage()); const northEast = map.unproject([w, 0], getMaxZoomForImage()); const bounds = new L.LatLngBounds(southWest, northEast); L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map); map.fitBounds(bounds); map.setMaxBounds(bounds.pad(0.2)); refreshMarkers(); }; img.src = MAP_IMAGE_URL; })();
+  </script>
+</body>
 </html>
