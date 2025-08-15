@@ -28,7 +28,7 @@
     .toast{position:fixed;left:50%;bottom:9.8rem;transform:translateX(-50%);background:#111827;color:#fff;padding:.7rem .9rem;border-radius:.8rem;box-shadow:0 8px 20px rgba(0,0,0,.3);font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s ease}
     .toast.show{opacity:1}
 
-    /* Wygrana: pełnoekranowy overlay z animacją */
+    /* Ekran wygranej */
     .win-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:1200;color:#fff;text-align:center}
     .win-overlay.show{display:flex;animation:fadeIn .4s ease}
     .win-title{font-size:2rem;font-weight:900;margin-bottom:.5rem}
@@ -37,6 +37,9 @@
     .piece{position:absolute;top:-10vh;font-size:1.6rem;animation:fall 3.5s linear infinite;opacity:.9}
     @keyframes fall{0%{transform:translateY(-10vh) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    /* 🧰 Tryb edycji: wyłącz interakcję markerów, by można było klikać dokładnie pod nimi */
+    body.editing .leaflet-marker-pane{ pointer-events:none; }
   </style>
 </head>
 <body>
@@ -84,6 +87,8 @@
     const map=L.map('map',{crs:L.CRS.Simple,zoomControl:false,minZoom:-2,maxZoom:2});
     let markers=new Map();
 
+    function setEditing(on){ state.editing=on; document.body.classList.toggle('editing', !!on); }
+
     function getMaxZoomForImage(){return 2;}
     function pxToLatLng(x,y){return map.unproject([x,y],getMaxZoomForImage());}
     function latLngToPx(latlng){return map.project(latlng,getMaxZoomForImage());}
@@ -94,8 +99,8 @@
       const icon=L.divIcon({html:iconHtml,className:'',iconSize:[36,36],iconAnchor:[18,18]});
       const [x,y]=pctToPx(t.posPct); const ll=pxToLatLng(x,y);
       const m=L.marker(ll,{icon}).addTo(map);
-      // Klik w X nadal działa (opcjonalnie), ale nie jest wymagany
-      m.on('click',()=>trySolveById(t.id));
+      // Klik w X działa tylko poza trybem edycji
+      m.on('click',()=>{ if(state.editing) return; trySolveById(t.id); });
       markers.set(t.id,m);
     }
 
@@ -191,7 +196,7 @@
       if(s===t.code){ state.found.add(id); el.classList.add('found'); updateStatus('Skarb zdobyty! 🏆'); revealNextById(id); } else { toast('Błędne hasło ❌'); }
     }
 
-    // Dodawanie X-ów z walidacją PIN (4 cyfry) — BEZ limitu odległości
+    // Dodawanie X-ów z walidacją PIN (4 cyfry) — brak limitu odległości, a markery nie blokują kliku w trybie edycji
     map.on('click',e=>{
       if(!state.editing || !state.imageSize) return;
       const px=latLngToPx(e.latlng);
@@ -202,7 +207,7 @@
       let code=null; while(true){ const inp=prompt('Ustal 4-cyfrowe hasło dla skarbu:'); if(inp===null){ code=null; break; } const s=String(inp).trim(); if(/^\d{4}$/.test(s)){ code=s; break; } toast('Hasło musi mieć dokładnie 4 cyfry.'); }
       if(code===null) return;
       const t={id,posPct,hint,code}; TREASURES.push(t); addMarker(t, TREASURES.length===1); updateCounter();
-      const more=confirm('Dodać kolejny X?'); if(!more){ state.editing=false; updateStatus('Gotowe. Naciśnij ▶️ Start gry.'); }
+      const more=confirm('Dodać kolejny X?'); if(!more){ setEditing(false); updateStatus('Gotowe. Naciśnij ▶️ Start gry.'); }
     });
 
     // Przyciski
@@ -227,13 +232,13 @@
 
     document.getElementById('newGameBtn').addEventListener('click',()=>{
       if(!confirm('Czy na pewno chcesz rozpocząć nową grę? Wszystkie skarby i postęp zostaną utracone.')) return;
-      TREASURES=[]; state.found.clear(); refreshMarkers(); state.editing=true;
+      TREASURES=[]; state.found.clear(); refreshMarkers(); setEditing(true);
       updateStatus('Instrukcja: stuknij w mapę, aby dodać X (nazwa + PIN 4 cyfry). Dodaj minimum jeden X, potem „▶️ Start gry”.');
     });
 
     document.getElementById('startBtn').addEventListener('click',()=>{
       if(TREASURES.length===0){ toast('Najpierw dodaj przynajmniej jeden X.'); return; }
-      state.editing=false; showOnlyFirst();
+      setEditing(false); showOnlyFirst();
       const i=currentVisibleIndex();
       const msg=i>-1?`Start! Wpisz hasło do pierwszego X. Wskazówka: ${TREASURES[i].hint}`:'Start!';
       updateStatus(msg);
